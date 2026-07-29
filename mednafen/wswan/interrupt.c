@@ -84,7 +84,7 @@ uint8 WSwan_InterruptRead(uint32 A)
       case 0xB2:
          return(IEnable);
       case 0xB6:
-         return(1 << IOn_Which); //return(IStatus);
+         return(1 << IOn_Which); /* return(IStatus); */
    }
 
    return 0;
