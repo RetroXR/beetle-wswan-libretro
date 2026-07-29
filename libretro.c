@@ -554,6 +554,8 @@ static int Load(const uint8_t *data, size_t size)
 
    WSwan_SoundInit();
 
+   WSwan_RTCInit();
+
    wsMakeTiles();
 
    Reset();
