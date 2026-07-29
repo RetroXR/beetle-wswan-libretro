@@ -211,7 +211,7 @@ void WSwan_SoundUpdate(void)
       right = (HVoiceChanCtrl & 0x20) ? sample : 0;
 
       Blip_Synth_offset(&WaveSynth, v30mz_timestamp, left - last_hv_val[0], &sbuf[0]);
-      Blip_Synth_offset(&WaveSynth, v30mz_timestamp, right - last_hv_val[0], &sbuf[1]);
+      Blip_Synth_offset(&WaveSynth, v30mz_timestamp, right - last_hv_val[1], &sbuf[1]);
       last_hv_val[0] = left;
       last_hv_val[1] = right;
    }
