@@ -196,3 +196,50 @@ void Blip_Buffer_mix_samples(Blip_Buffer* bbuf, blip_sample_t const* in, long co
 	}
 	*out -= prev;
 }
+
+void Blip_Buffer_save_state(Blip_Buffer* bbuf, Blip_Buffer_state* st)
+{
+	long avail = Blip_Buffer_samples_avail(bbuf);
+	long tail_count = avail + blip_buffer_extra_;
+	long i;
+
+	if (tail_count > BLIP_STATE_TAIL_COUNT)
+		tail_count = BLIP_STATE_TAIL_COUNT;
+
+	st->offset       = bbuf->offset;
+	st->reader_accum = bbuf->reader_accum;
+	st->sample_rate  = bbuf->sample_rate;
+	st->clock_rate   = bbuf->clock_rate;
+
+	for (i = 0; i < BLIP_STATE_TAIL_COUNT; i++)
+		st->tail[i] = 0;
+	if (bbuf->buffer)
+		for (i = 0; i < tail_count; i++)
+			st->tail[i] = bbuf->buffer[i];
+}
+
+int Blip_Buffer_load_state(Blip_Buffer* bbuf, const Blip_Buffer_state* st)
+{
+	long i;
+
+	Blip_Buffer_clear(bbuf, 1);
+
+	/* In-flight resampler state is only meaningful if the output
+	 * and input rates are unchanged since the state was written. */
+	if (st->sample_rate != bbuf->sample_rate ||
+	    st->clock_rate != bbuf->clock_rate || !bbuf->buffer)
+		return 0;
+
+	/* Reject offsets pointing beyond the allocation; a hostile
+	 * savestate must not become an OOB write through the synth. */
+	if ((blip_long)(st->offset >> BLIP_BUFFER_ACCURACY) > bbuf->buffer_size)
+		return 0;
+
+	bbuf->offset       = st->offset;
+	bbuf->reader_accum = st->reader_accum;
+
+	for (i = 0; i < BLIP_STATE_TAIL_COUNT; i++)
+		bbuf->buffer[i] = st->tail[i];
+
+	return 1;
+}

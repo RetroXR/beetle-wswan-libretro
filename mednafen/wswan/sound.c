@@ -57,6 +57,19 @@ static uint8 sample_pos[4];
 static uint16 nreg;
 static uint32 last_ts;
 
+static Blip_Buffer_state BlipState[2];
+static uint8 BlipValid;
+
+/* Forget the DAC output levels; used whenever the Blip integrator
+ * has been reset to zero so that the next synth events re-acquire
+ * absolute levels instead of leaving a permanent DC offset. */
+static void ResetDACLevels(void)
+{
+   memset(sample_cache, 0, sizeof(sample_cache));
+   memset(last_val, 0, sizeof(last_val));
+   memset(last_hv_val, 0, sizeof(last_hv_val));
+}
+
 
 #define MK_SAMPLE_CACHE	\
    {    \
@@ -393,6 +406,12 @@ bool WSwan_SetSoundRate(uint32 rate)
    for(i = 0; i < 2; i++)
       Blip_Buffer_set_sample_rate(&sbuf[i], rate ? rate : 44100, 60);
 
+   /* set_sample_rate cleared the buffers, zeroing the Blip
+    * integrators; drop the tracked DAC levels with them or every
+    * channel keeps a permanent DC offset until it next changes
+    * amplitude. */
+   ResetDACLevels();
+
    return(true);
 }
 
@@ -417,8 +436,40 @@ int WSwan_SoundStateAction(StateMem *sm, int load, int data_only)
       SFARRAY32(period_counter, 4),
       SFARRAY(sample_pos, 4),
       SFVAR(nreg),
+
+      /* Output-side DAC and resampler state. Not serialized
+       * upstream, but without it audio is not sample-exact across
+       * a savestate load: Blip_Buffer integrates deltas against
+       * these levels, so a mismatch at load time turns into a
+       * persistent DC offset on the reconstructed waveform.
+       * Older savestates simply lack the fields (BlipValid stays
+       * 0) and take the fallback path below. */
+      SFARRAY32N(&sample_cache[0][0], 8, "sample_cache"),
+      SFARRAY32N(&last_val[0][0], 8, "last_val"),
+      SFARRAY32N(last_hv_val, 2, "last_hv_val"),
+      SFVAR(HyperVoice),
+      SFVARN(BlipState[0].offset, "Blip0.offset"),
+      SFVARN(BlipState[0].reader_accum, "Blip0.accum"),
+      SFVARN(BlipState[0].sample_rate, "Blip0.rate"),
+      SFVARN(BlipState[0].clock_rate, "Blip0.clock"),
+      SFARRAY32N(BlipState[0].tail, BLIP_STATE_TAIL_COUNT, "Blip0.tail"),
+      SFVARN(BlipState[1].offset, "Blip1.offset"),
+      SFVARN(BlipState[1].reader_accum, "Blip1.accum"),
+      SFVARN(BlipState[1].sample_rate, "Blip1.rate"),
+      SFVARN(BlipState[1].clock_rate, "Blip1.clock"),
+      SFARRAY32N(BlipState[1].tail, BLIP_STATE_TAIL_COUNT, "Blip1.tail"),
+      SFVARN(BlipValid, "BlipValid"),
       SFEND
    };
+
+   if(!load)
+   {
+      Blip_Buffer_save_state(&sbuf[0], &BlipState[0]);
+      Blip_Buffer_save_state(&sbuf[1], &BlipState[1]);
+      BlipValid = 1;
+   }
+   else
+      BlipValid = 0;
 
    if(!MDFNSS_StateAction(sm, load, data_only, StateRegs, "PSG", false))
       return 0;
@@ -426,6 +477,26 @@ int WSwan_SoundStateAction(StateMem *sm, int load, int data_only)
    if(load)
    {
       unsigned ch;
+      int blip_ok = 0;
+
+      if(BlipValid)
+      {
+         blip_ok  = Blip_Buffer_load_state(&sbuf[0], &BlipState[0]);
+         blip_ok &= Blip_Buffer_load_state(&sbuf[1], &BlipState[1]);
+      }
+      else
+      {
+         Blip_Buffer_clear(&sbuf[0], 1);
+         Blip_Buffer_clear(&sbuf[1], 1);
+      }
+
+      /* If the resampler state could not be restored (old
+       * savestate, or the output rate changed between sessions),
+       * its integrator is now zero; drop the DAC levels with it
+       * so the two stay consistent. */
+      if(!blip_ok)
+         ResetDACLevels();
+
       if(sweep_8192_divider < 1)
          sweep_8192_divider = 1;
 

@@ -48,6 +48,24 @@ typedef struct
    int modified;
 } Blip_Buffer;
 
+/* Snapshot of the small in-flight resampler state (integrator,
+ * fractional clock position, unread FIR tail). Serializing this in
+ * savestates makes audio sample-exact across a state load. */
+#define BLIP_STATE_TAIL_COUNT 24
+typedef struct
+{
+   blip_u64  offset;
+   blip_long reader_accum;
+   blip_long sample_rate;
+   blip_long clock_rate;
+   blip_long tail[BLIP_STATE_TAIL_COUNT];
+} Blip_Buffer_state;
+
+void Blip_Buffer_save_state(Blip_Buffer* bbuf, Blip_Buffer_state* st);
+/* Returns 0 (and just clears the buffer) if rates changed since the
+ * state was written. */
+int Blip_Buffer_load_state(Blip_Buffer* bbuf, const Blip_Buffer_state* st);
+
 void Blip_Buffer_init(Blip_Buffer* bbuf);
 void Blip_Buffer_deinit(Blip_Buffer* bbuf);
 
