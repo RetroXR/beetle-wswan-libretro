@@ -413,7 +413,7 @@ void wsScanline(uint16 *target, int depth)
          {
             for(j = 0; j < 224; j++)
             {
-               if(!(j >= FGx0 && j <= FGx1) || !((wsLine >= FGy0) && (wsLine < FGy1)))
+               if(!(j >= FGx0 && j <= FGx1) || !((wsLine >= FGy0) && (wsLine <= FGy1)))
                   in_window[7 + j] = 1;
             }
          }
