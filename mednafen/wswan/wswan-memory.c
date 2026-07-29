@@ -408,6 +408,21 @@ int WSwan_MemoryStateAction(StateMem *sm, int load, int data_only)
    if(load)
    {
       uint32 A;
+
+      /* Sanitize DMA state loaded from the savestate. In particular
+       * DMALength must stay even: ws_CheckDMA() decrements it by 2
+       * in a while(DMALength) loop, so an odd value smuggled in via
+       * a corrupt savestate would never reach zero and hang the
+       * core. The port write handlers already enforce these masks;
+       * apply the same invariants here. (Upstream 0.9.39.2.) */
+      DMADest              &= 0xFFFE;
+      DMALength            &= 0xFFFE;
+      DMASource            &= 0x000FFFFE;
+      SoundDMASource       &= 0x000FFFFF;
+      SoundDMASourceSaved  &= 0x000FFFFF;
+      SoundDMALength       &= 0x000FFFFF;
+      SoundDMALengthSaved  &= 0x000FFFFF;
+
       for(A = 0xfe00; A <= 0xFFFF; A++)
          WSwan_GfxWSCPaletteRAMWrite(A, wsRAM[A]);
    }

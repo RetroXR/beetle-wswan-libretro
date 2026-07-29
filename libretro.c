@@ -396,7 +396,7 @@ static void Reset(void)
    WSwan_RTCReset();
    WSwan_EEPROMReset();
 
-   for(u0=0;u0<0xc9;u0++)
+   for(u0=0;u0<0xc8;u0++)
    {
       if(u0 != 0xC4 && u0 != 0xC5 && u0 != 0xBA && u0 != 0xBB)
          WSwan_writeport(u0,startio[u0]);
