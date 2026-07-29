@@ -25,6 +25,7 @@
 #include "wswan.h"
 #include "gfx.h"
 #include "interrupt.h"
+#include "comm.h"
 #include "wswan-memory.h"
 #include "sound.h"
 #include "eeprom.h"
@@ -58,7 +59,6 @@ static uint8 SoundDMATimer;
 
 static uint8 BankSelector[4];
 
-static uint8 CommControl, CommData;
 
 static bool language;
 
@@ -231,17 +231,8 @@ uint8 WSwan_readport(uint32 number)
       case 0x50: return(SoundDMALength >> 16);
       case 0x52: return(SoundDMAControl);
 
-      case 0xB1: return(CommData);
-
-      case 0xb3: 
-                 {
-                    uint8 ret = CommControl & 0xf0;
-
-                    if(CommControl & 0x80)
-                       ret |= 0x4; // Send complete
-
-                    return(ret);
-                 }
+      case 0xB1:
+      case 0xb3: return(Comm_Read(number));
       case 0xb5: 
                  {
                     uint8 ret = (ButtonWhich << 4) | ButtonReadLatch;
@@ -298,8 +289,8 @@ void WSwan_writeport(uint32 IOPort, uint8 V)
       case 0xB2:
       case 0xB6: WSwan_InterruptWrite(IOPort, V); break;
 
-      case 0xB1: CommData = V; break;
-      case 0xB3: CommControl = V & 0xF0; break;
+      case 0xB1:
+      case 0xB3: Comm_Write(IOPort, V); break;
 
       case 0xb5: ButtonWhich = V >> 4;
                  ButtonReadLatch = 0;
@@ -383,8 +374,6 @@ void WSwan_MemoryReset(void)
    SoundDMAControl = 0;
    SoundDMATimer = 0;
 
-   CommControl = 0;
-   CommData = 0;
 }
 
 int WSwan_MemoryStateAction(StateMem *sm, int load, int data_only)
@@ -407,9 +396,6 @@ int WSwan_MemoryStateAction(StateMem *sm, int load, int data_only)
       SFVAR(SoundDMALengthSaved),
       SFVAR(SoundDMAControl),
       SFVAR(SoundDMATimer),
-
-      SFVAR(CommControl),
-      SFVAR(CommData),
 
       SFARRAY(BankSelector, 4),
 

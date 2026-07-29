@@ -21,6 +21,7 @@ enum
 };
 
 void WSwan_Interrupt(int);
+void WSwan_InterruptAssert(int which, bool asserted);
 void WSwan_InterruptWrite(uint32 A, uint8 V);
 uint8 WSwan_InterruptRead(uint32 A);
 void WSwan_InterruptCheck(void);

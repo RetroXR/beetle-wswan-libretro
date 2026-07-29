@@ -16,6 +16,7 @@
 #include "mednafen/wswan/sound.h"
 #include "mednafen/wswan/v30mz.h"
 #include "mednafen/wswan/rtc.h"
+#include "mednafen/wswan/comm.h"
 #include "mednafen/wswan/eeprom.h"
 
 #if defined(_3DS)
@@ -388,6 +389,7 @@ static void Reset(void)
 
    v30mz_reset();				/* Reset CPU */
    WSwan_MemoryReset();
+   Comm_Reset();
    WSwan_GfxReset();
    WSwan_SoundReset();
    WSwan_InterruptReset();
@@ -582,6 +584,8 @@ int StateAction(StateMem *sm, int load, int data_only)
       return 0;
    /* Call MemoryStateAction before others StateActions... */
    if(!WSwan_MemoryStateAction(sm, load, data_only))
+      return 0;
+   if(!Comm_StateAction(sm, load, data_only))
       return 0;
    if(!WSwan_GfxStateAction(sm, load, data_only))
       return 0;

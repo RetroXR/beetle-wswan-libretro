@@ -7,6 +7,10 @@ static uint8 IStatus;
 static uint8 IEnable;
 static uint8 IVectorBase;
 
+/* Level-triggered interrupt lines (currently only serial receive). */
+static const uint8 LevelTriggeredMask = (1U << WSINT_SERIAL_RECV);
+static uint8 IAsserted;
+
 static bool IOn_Cache;
 static uint32 IOn_Which;
 static uint32 IVector_Cache;
@@ -14,6 +18,9 @@ static uint32 IVector_Cache;
 static void RecalcInterrupt(void)
 {
    unsigned i;
+
+   IStatus |= (IAsserted & LevelTriggeredMask) & IEnable;
+
    IOn_Cache     = false;
    IOn_Which     = 0;
    IVector_Cache = 0;
@@ -30,11 +37,21 @@ static void RecalcInterrupt(void)
    }
 }
 
+void WSwan_InterruptAssert(int which, bool asserted)
+{
+   uint8 prev_IAsserted = IAsserted;
+
+   IAsserted &= ~(1U << which);
+   IAsserted |= (unsigned)asserted << which;
+
+   IStatus |= ((prev_IAsserted ^ IAsserted) & IAsserted) & IEnable;
+
+   RecalcInterrupt();
+}
+
 void WSwan_Interrupt(int which)
 {
-   if(IEnable & (1 << which))
-      IStatus |= 1 << which;
-
+   IStatus |= (1U << which) & IEnable;
    RecalcInterrupt();
 }
 
@@ -81,6 +98,7 @@ void WSwan_InterruptCheck(void)
 
 void WSwan_InterruptReset(void)
 {
+   IAsserted = 0x00;
    IEnable = 0x00;
    IStatus = 0x00;
    IVectorBase = 0x00;
@@ -94,6 +112,7 @@ int WSwan_InterruptStateAction(StateMem *sm, int load, int data_only)
       { &(IStatus), (uint32_t)sizeof(IStatus), MDFNSTATE_RLSB, "IStatus" },
       { &(IEnable), (uint32_t)sizeof(IEnable), MDFNSTATE_RLSB, "IEnable"},
       { &(IVectorBase), (uint32_t)sizeof(IVectorBase), MDFNSTATE_RLSB, "IVectorBase" },
+      { &(IAsserted), (uint32_t)sizeof(IAsserted), MDFNSTATE_RLSB, "IAsserted" },
       { 0, 0, 0, 0 }
    };
 

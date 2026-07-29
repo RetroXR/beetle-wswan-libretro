@@ -26,6 +26,7 @@
 #include "wswan-memory.h"
 #include "v30mz.h"
 #include "rtc.h"
+#include "comm.h"
 #include "../video.h"
 #include "../state_inline.h"
 
@@ -198,6 +199,7 @@ bool wsExecuteLine(MDFN_Surface *surface, bool skip)
       }
    }
 
+   Comm_Process();
    WSwan_CheckSoundDMA();
 
    /* Update sprite data table
