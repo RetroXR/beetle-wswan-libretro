@@ -86,6 +86,7 @@ static bool link_paired;
  * say so (the frontend drops anything quieter). Logged at 1, 10, 100, ... so a
  * long session costs a handful of lines. */
 static uint32 link_rx, link_tx, link_rx_next, link_tx_next;
+static uint32 link_ovr, link_ovr_next, link_drop, link_drop_next;
 
 /* Bytes from the far end, held until this unit's clock reaches the tick each
  * was stamped with. WHEN one arrives is a wall-clock accident; when its tick
@@ -116,6 +117,8 @@ static void RefreshPeers(void)
    {
       link_rx = link_tx = 0;
       link_rx_next = link_tx_next = 1;
+      link_ovr = link_drop = 0;
+      link_ovr_next = link_drop_next = 1;
       if (log_cb)
          log_cb(RETRO_LOG_WARN, "[ws-sio] %s (bus of %u)\n",
                paired ? "cabled" : "uncabled", count);
@@ -142,6 +145,8 @@ static void Pump(void)
 
    while (link_if->recv(link_handle, &tick, &from, buf, &len))
    {
+      if (len >= 1 && pending_count >= PENDING_MAX)
+         Count(&link_drop, &link_drop_next, "DROPPED, queue full");
       if (len >= 1 && pending_count < PENDING_MAX)
       {
          unsigned i = pending_count++;
@@ -193,6 +198,13 @@ static void Rendezvous(void)
    }
 }
 
+/* The send line is a level: asserted while the port is on and its buffer is
+ * empty. */
+static void SendLevel(void)
+{
+   WSwan_InterruptAssert(WSINT_SERIAL_SEND, (Control & 0x80) && !SendLatched);
+}
+
 static void Receive(uint8 byte)
 {
    if (!(Control & 0x80))
@@ -202,6 +214,7 @@ static void Receive(uint8 byte)
    {
       /* The byte in the buffer is kept; the one behind it is lost. */
       Overrun = true;
+      Count(&link_ovr, &link_ovr_next, "lost to overrun");
       return;
    }
 
@@ -250,6 +263,7 @@ void Comm_Reset(void)
    Sending = false;
 
    Control = 0x00;
+   SendLevel();
 
    /* link_now is NOT reset: the bus reads a clock going backwards as a peer
     * that ran away, and a reset machine is still on the same cable. */
@@ -287,7 +301,7 @@ void Comm_Process(void)
       {
          /* No cable; the byte leaves the shift register immediately. */
          SendLatched = false;
-         WSwan_Interrupt(WSINT_SERIAL_SEND);
+         SendLevel();
          return;
       }
 
@@ -303,7 +317,7 @@ void Comm_Process(void)
    {
       Sending = false;
       SendLatched = false;
-      WSwan_Interrupt(WSINT_SERIAL_SEND);
+      SendLevel();
    }
 }
 
@@ -343,6 +357,7 @@ void Comm_Write(uint8 A, uint8 V)
       {
          SendBuf = V;
          SendLatched = true;
+         SendLevel();
       }
    }
    else if(A == 0xB3)
@@ -350,7 +365,17 @@ void Comm_Write(uint8 A, uint8 V)
       /* Bit 5 clears the overrun flag. */
       if(V & 0x20)
          Overrun = false;
+      /* Switching the port off empties it. Games reset the port to flush it
+       * before a handshake, and a byte left over from before the reset is read
+       * as the answer to the next one. */
+      if(!(V & 0x80))
+      {
+         RecvLatched = false;
+         Overrun = false;
+         WSwan_InterruptAssert(WSINT_SERIAL_RECV, RecvLatched);
+      }
       Control = V & 0xF0;
+      SendLevel();
    }
 }
 
@@ -383,6 +408,7 @@ int Comm_StateAction(StateMem *sm, int load, int data_only)
    {
       SendDone = link_now + SendLeft;
       WSwan_InterruptAssert(WSINT_SERIAL_RECV, RecvLatched);
+      SendLevel();
    }
 
    return 1;

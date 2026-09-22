@@ -7,8 +7,11 @@ static uint8 IStatus;
 static uint8 IEnable;
 static uint8 IVectorBase;
 
-/* Level-triggered interrupt lines (currently only serial receive). */
-static const uint8 LevelTriggeredMask = (1U << WSINT_SERIAL_RECV);
+/* Level-triggered interrupt lines: serial receive (the buffer is full) and
+ * serial send (the buffer is empty). Send is a level too, not an edge on
+ * completion: a game that drives the port by interrupt enables it while the
+ * buffer is idle and waits for it to fire, which an edge never does. */
+static const uint8 LevelTriggeredMask = (1U << WSINT_SERIAL_RECV) | (1U << WSINT_SERIAL_SEND);
 static uint8 IAsserted;
 
 static bool IOn_Cache;
