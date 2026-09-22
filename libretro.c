@@ -18,6 +18,7 @@
 #include "mednafen/wswan/v30mz.h"
 #include "mednafen/wswan/rtc.h"
 #include "mednafen/wswan/comm.h"
+#include "mednafen/wswan/link_interface.h"
 #include "mednafen/state_inline.h"
 #include "mednafen/wswan/eeprom.h"
 
@@ -1142,6 +1143,16 @@ void retro_init(void)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_INPUT_BITMASKS, NULL))
       libretro_supports_bitmasks = true;
+
+   /* The Communication Cable, when the frontend hosts a link bus. */
+   {
+      static struct retro_link_interface link;
+      memset(&link, 0, sizeof(link));
+      if (environ_cb(RETRO_ENVIRONMENT_GET_LINK_INTERFACE, &link))
+         Comm_SetLinkInterface(&link);
+      else
+         Comm_SetLinkInterface(NULL);
+   }
 }
 
 void retro_reset(void)
@@ -1187,6 +1198,8 @@ bool retro_load_game(const struct retro_game_info *info)
    if (!MDFNI_LoadGame(MEDNAFEN_CORE_NAME_MODULE,
          (const uint8_t*)info->data, info->size))
       goto error;
+
+   Comm_LinkStart();
 
    chee = (uint8 *)&input_buf;
    surf = (MDFN_Surface*)calloc(1, sizeof(*surf));
@@ -1280,6 +1293,7 @@ error:
 
 void retro_unload_game(void)
 {
+   Comm_LinkStop();
    MDFNI_CloseGame();
 
    if (surf)

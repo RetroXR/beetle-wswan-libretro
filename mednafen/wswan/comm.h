@@ -14,6 +14,11 @@ uint8 Comm_Read(uint8 A);
 void Comm_Write(uint8 A, uint8 V);
 int Comm_StateAction(StateMem *sm, int load, int data_only);
 
+struct retro_link_interface;
+void Comm_SetLinkInterface(const struct retro_link_interface *link);
+void Comm_LinkStart(void);
+void Comm_LinkStop(void);
+
 #ifdef __cplusplus
 }
 #endif
