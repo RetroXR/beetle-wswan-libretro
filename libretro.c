@@ -426,6 +426,7 @@ static void Reset(void)
 }
 
 static uint8 *chee = NULL;
+static bool op_gbsc_sram_fix = false;
 
 static void Emulate(EmulateSpecStruct *espec,
       int skip_frame, int update_sample_rate)
@@ -620,6 +621,18 @@ static int Load(const uint8_t *data, size_t size)
       wsCartROM[0xfffeb]=0x00;
       wsCartROM[0xfffec]=0x20;
    }
+
+   /* One Piece - Grand Battle Swan Colosseum resets both fighters, through
+    * two pointers it keeps in battery-backed SRAM (1000:003C and 003E), before
+    * it creates them. On a cartridge that has ever fought a battle those point
+    * at the last fight's objects and the reset is harmless; on a blank save
+    * they are zero, and ORing into [0 + 8] lands on the head of the game's own
+    * task list, which then loops for ever the moment a 1P VS 2P battle over
+    * the Communication Cable starts. So a blank save is given the two pointers
+    * the game itself assigns (09B0 and 0AC0), once, after the frontend has had
+    * the chance to load a real save over it. */
+   op_gbsc_sram_fix = (header[0] == 0x01) && (header[2] == 0x29) &&
+                      ((header[8] | (header[9] << 8)) == 0xfd2e);
 
 #if 0
    if(header[6] & 0x1)
@@ -1142,6 +1155,16 @@ void retro_init(void)
 
    if (environ_cb(RETRO_ENVIRONMENT_GET_INPUT_BITMASKS, NULL))
       libretro_supports_bitmasks = true;
+
+   /* The Communication Cable, when the frontend hosts a link bus. */
+   {
+      static struct retro_link_interface link;
+      memset(&link, 0, sizeof(link));
+      if (environ_cb(RETRO_ENVIRONMENT_GET_LINK_INTERFACE, &link))
+         Comm_SetLinkInterface(&link);
+      else
+         Comm_SetLinkInterface(NULL);
+   }
 }
 
 void retro_reset(void)
@@ -1187,6 +1210,8 @@ bool retro_load_game(const struct retro_game_info *info)
    if (!MDFNI_LoadGame(MEDNAFEN_CORE_NAME_MODULE,
          (const uint8_t*)info->data, info->size))
       goto error;
+
+   Comm_LinkStart();
 
    chee = (uint8 *)&input_buf;
    surf = (MDFN_Surface*)calloc(1, sizeof(*surf));
@@ -1280,6 +1305,7 @@ error:
 
 void retro_unload_game(void)
 {
+   Comm_LinkStop();
    MDFNI_CloseGame();
 
    if (surf)
@@ -1395,6 +1421,16 @@ void retro_run(void)
    if (environ_cb(RETRO_ENVIRONMENT_GET_VARIABLE_UPDATE, &updated) && updated)
       check_variables(false);
    update_sample_rate = update_audio;
+
+   if (op_gbsc_sram_fix)
+   {
+      op_gbsc_sram_fix = false;
+      if (wsSRAM && !(wsSRAM[0x3c] | wsSRAM[0x3d] | wsSRAM[0x3e] | wsSRAM[0x3f]))
+      {
+         wsSRAM[0x3c] = 0xb0; wsSRAM[0x3d] = 0x09;
+         wsSRAM[0x3e] = 0xc0; wsSRAM[0x3f] = 0x0a;
+      }
+   }
 
    input_poll_cb();
 
