@@ -4,7 +4,7 @@
 # This fork carries the WonderSwan Communication Cable: the EXT port's UART
 # (mednafen/wswan/comm.c) joins a link bus the frontend hosts through
 # RETRO_ENVIRONMENT_GET_LINK_INTERFACE (libretro/RetroArch#19454) and speaks
-# `ws-sio-1`. With no bus, or nothing cabled, the port behaves exactly as the
+# `ws-sio`. With no bus, or nothing cabled, the port behaves exactly as the
 # stock core's does, so there is no option to switch it on.
 #
 #   Windows  mednafen_wswan_libretro.dll.zip          containing mednafen_wswan_libretro.dll
@@ -254,7 +254,7 @@ jobs:
           x86_64. The source for these binaries is this tag.
 
           Over the stock buildbot build this carries the WonderSwan Communication
-          Cable, spoken as \`ws-sio-1\` over a link bus the frontend hosts
+          Cable, spoken as \`ws-sio\` over a link bus the frontend hosts
           (RETRO_ENVIRONMENT_GET_LINK_INTERFACE, libretro/RetroArch#19454).
           Switching the port off empties its receive buffer, the serial-send
           interrupt is a level as on the hardware, and One Piece - Grand Battle

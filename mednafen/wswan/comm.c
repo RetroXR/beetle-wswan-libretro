@@ -49,7 +49,7 @@
 
 #include "../state_inline.h"
 
-#define LINK_PROTOCOL   "ws-sio-1"
+#define LINK_PROTOCOL   "ws-sio"
 #define LINK_CLOCK      3072000
 #define LINE_CYCLES     256
 #define BYTE_SLOW       3200  /* 10 bits at 9600 baud */
