@@ -181,7 +181,7 @@ jobs:
   # x86_64 leg would quietly build a second arm64 core. lipo is what catches it.
   macos:
     name: macOS ${{ matrix.arch }}
-    runs-on: macos-14
+    runs-on: macos-15
     strategy:
       matrix:
         include:
