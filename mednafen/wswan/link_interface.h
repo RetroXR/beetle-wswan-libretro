@@ -28,7 +28,7 @@ extern "C" {
  * \c false otherwise, which a core must treat as nothing plugged in.
  * @see retro_link_interface
  */
-#define RETRO_ENVIRONMENT_GET_LINK_INTERFACE (94 | RETRO_ENVIRONMENT_EXPERIMENTAL)
+#define RETRO_ENVIRONMENT_GET_LINK_INTERFACE (107 | RETRO_ENVIRONMENT_EXPERIMENTAL)
 
 /**
  * Returned by \c retro_link_advance_t when nothing bounds this core: nothing is
